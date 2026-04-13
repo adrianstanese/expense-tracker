@@ -7,8 +7,9 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 const F = "'DM Sans',system-ui,-apple-system,sans-serif";
 const G = { r:16,rS:12,rXs:8,blur:"saturate(180%) blur(16px)",blurS:"saturate(140%) blur(10px)" };
+const RON_EUR_RATE = 5.1; // Fixed RON to EUR conversion rate
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const CURRENCIES = [{c:"EUR",s:"€",f:"🇪🇺"},{c:"RON",s:"lei",f:"🇷🇴"},{c:"BGN",s:"лв",f:"🇧🇬"},{c:"USD",s:"$",f:"🇺🇸"},{c:"GBP",s:"£",f:"🇬🇧"}];
+const CURRENCIES = [{c:"EUR",s:"€",f:"🇪🇺"},{c:"RON",s:"lei",f:"🇷🇴"}];
 const CAT_E:Record<string,string>={"Food & Dining":"🍽️","Groceries":"🛒","Transport":"🚗","Accommodation":"🏨","Shopping":"🛍️","Entertainment":"🎬","Health & Pharmacy":"💊","Bills & Utilities":"📄","Travel":"✈️","Coffee & Drinks":"☕","Gifts":"🎁","Personal Care":"💇","Education":"📚","Subscriptions":"📱","Other":"📦"};
 const CAT_C=["#3b6de6","#7c5ce0","#059669","#d97706","#dc2626","#0891b2","#db2777","#4f46e5","#16a34a","#ea580c","#7c3aed","#0d9488","#c026d3","#2563eb","#64748b"];
 const MEM_C=["#3b6de6","#7c5ce0","#059669","#d97706"];
@@ -16,15 +17,11 @@ const MEM_G=["linear-gradient(135deg,#3b6de6,#5b9aff)","linear-gradient(135deg,#
 
 // ─── Auto theme by time of day (Feature #4) ──────────────────
 function autoThemeKey():string {
-  const h=new Date().getHours();
-  if(h>=22||h<6) return "dark";
-  if(h>=18) return "dark";
   return "light";
 }
 
 const TH:Record<string,any>={
   light:{id:"light",lb:"Light",ic:"☀️",bg:"linear-gradient(145deg,#f0f4fa 0%,#e6ecf5 50%,#dfe7f4 100%)",gbg:"rgba(255,255,255,0.55)",gbd:"rgba(255,255,255,0.75)",card:"rgba(255,255,255,0.82)",cardS:"0 4px 24px rgba(15,29,61,0.06)",hdr:"rgba(255,255,255,0.72)",hdrS:"0 1px 0 rgba(15,29,61,0.06)",tx:"#0f1d3d",t2:"#4a5578",t3:"#8892ab",bd:"rgba(15,29,61,0.08)",bd2:"rgba(15,29,61,0.04)",ac:"#3b6de6",acS:"rgba(59,109,230,0.1)",acG:"linear-gradient(135deg,#3b6de6,#5b9aff)",acSh:"0 4px 20px rgba(59,109,230,0.25)",ok:"#059669",okBg:"rgba(5,150,105,0.08)",er:"#dc2626",erBg:"rgba(220,38,38,0.06)",modalBg:"rgba(0,0,0,0.3)",shC:"#059669",shBg:"rgba(5,150,105,0.08)",prC:"#d97706",prBg:"rgba(217,119,6,0.08)",skelA:"rgba(15,29,61,0.06)",skelB:"rgba(15,29,61,0.12)"},
-  dark:{id:"dark",lb:"Dark",ic:"🌙",bg:"linear-gradient(145deg,#080c18 0%,#0d1224 50%,#111828 100%)",gbg:"rgba(17,24,40,0.65)",gbd:"rgba(91,154,255,0.08)",card:"rgba(17,24,40,0.82)",cardS:"0 4px 24px rgba(0,0,0,0.3)",hdr:"rgba(8,12,24,0.85)",hdrS:"0 1px 0 rgba(255,255,255,0.04)",tx:"#e8ecf4",t2:"#8a96b0",t3:"#4c5b78",bd:"rgba(255,255,255,0.06)",bd2:"rgba(255,255,255,0.03)",ac:"#5b9aff",acS:"rgba(91,154,255,0.12)",acG:"linear-gradient(135deg,#2563eb,#5b9aff)",acSh:"0 4px 20px rgba(91,154,255,0.3)",ok:"#3ddba4",okBg:"rgba(61,219,164,0.1)",er:"#ff6b6b",erBg:"rgba(255,107,107,0.08)",modalBg:"rgba(0,0,0,0.6)",shC:"#3ddba4",shBg:"rgba(61,219,164,0.1)",prC:"#fbbf24",prBg:"rgba(251,191,36,0.1)",skelA:"rgba(255,255,255,0.04)",skelB:"rgba(255,255,255,0.08)"},
   pink:{id:"pink",lb:"Pink",ic:"🌸",bg:"linear-gradient(145deg,#fef1f7 0%,#fde4ef 50%,#fcd9e8 100%)",gbg:"rgba(255,245,250,0.6)",gbd:"rgba(214,36,110,0.1)",card:"rgba(255,245,250,0.82)",cardS:"0 4px 24px rgba(214,36,110,0.06)",hdr:"rgba(255,245,250,0.75)",hdrS:"0 1px 0 rgba(214,36,110,0.06)",tx:"#4a0e2b",t2:"#8b1a50",t3:"#c44a83",bd:"rgba(214,36,110,0.1)",bd2:"rgba(214,36,110,0.05)",ac:"#d6246e",acS:"rgba(214,36,110,0.1)",acG:"linear-gradient(135deg,#d6246e,#f06daa)",acSh:"0 4px 20px rgba(214,36,110,0.25)",ok:"#059669",okBg:"rgba(5,150,105,0.08)",er:"#d6246e",erBg:"rgba(214,36,110,0.06)",modalBg:"rgba(0,0,0,0.3)",shC:"#059669",shBg:"rgba(5,150,105,0.08)",prC:"#d97706",prBg:"rgba(217,119,6,0.08)",skelA:"rgba(214,36,110,0.04)",skelB:"rgba(214,36,110,0.08)"},
 };
 
@@ -81,7 +78,7 @@ function QRCode({data,size=160}:{data:string,size?:number}){
 // ═════════════════════════════════════════════════════════════
 export default function App(){
   // ─── State ─────────────────────────────────────────────────
-  const[tk,setTk]=useState("auto");
+  const[tk,setTk]=useState("light");
   const[group,setGroup]=useState<Group|null>(null);
   const[groupId,setGroupId]=useState<string|null>(null);
   const[user,setUser]=useState<string|null>(null);
@@ -95,6 +92,7 @@ export default function App(){
   const[currency,setCurrency]=useState("EUR");
   const[trip,setTrip]=useState("");
   const[scope,setScope]=useState("shared");
+  const[expDate,setExpDate]=useState("");
   const[toast,setToast]=useState("");
   const[saving,setSaving]=useState(false);
   const[selMonth,setSelMonth]=useState<string|null>(null);
@@ -332,10 +330,11 @@ export default function App(){
     }
     setSaving(true);
     try{
-      const res=await(await fetch("/api/expenses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),group_id:groupId,username:user,amount:Math.round(v*100)/100,description:desc.trim(),currency,trip,scope})})).json();
+      const customDate=expDate?new Date(expDate+"T12:00:00").toISOString():undefined;
+      const res=await(await fetch("/api/expenses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),group_id:groupId,username:user,amount:Math.round(v*100)/100,description:desc.trim(),currency,trip,scope,created_at:customDate})})).json();
       const fresh=await(await fetch(`/api/expenses?gid=${groupId}`)).json();
       if(Array.isArray(fresh))setExpenses(fresh);
-      setAmount("");setDesc("");setShowFab(false);
+      setAmount("");setDesc("");setExpDate("");setShowFab(false);
       setToast(`${CAT_E[res.category]||"📦"} ${res.category}`);
       setTimeout(()=>setToast(""),2200);
       // Milestone confetti (Feature #5)
@@ -510,7 +509,7 @@ export default function App(){
 
           {/* Theme */}
           <div style={{marginTop:24,display:"flex",justifyContent:"center",gap:6}}>
-            <button onClick={()=>setTk("auto")} style={{padding:"3px 8px",borderRadius:8,border:tk==="auto"?`2px solid ${th.ac}`:`1px solid ${th.bd}`,background:tk==="auto"?th.acS:"transparent",fontSize:10,color:tk==="auto"?th.ac:th.t3,cursor:"pointer",fontFamily:F}}>Auto</button>
+            
             {Object.entries(TH).map(([k,v]:any)=>(
               <button key={k} onClick={()=>setTk(k)} style={{width:26,height:26,borderRadius:"50%",border:tk===k?`2px solid ${th.ac}`:`1px solid ${th.bd}`,background:k==="light"?"#f0f4fa":k==="dark"?"#111828":"#fef1f7",cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>{v.ic}</button>
             ))}
@@ -639,7 +638,7 @@ export default function App(){
 
           {/* Theme */}
           <div style={{marginTop:16,display:"flex",justifyContent:"center",gap:6}}>
-            <button onClick={()=>setTk("auto")} style={{padding:"2px 7px",borderRadius:6,border:tk==="auto"?`2px solid ${th.ac}`:`1px solid ${th.bd}`,background:tk==="auto"?th.acS:"transparent",fontSize:9,color:tk==="auto"?th.ac:th.t3,cursor:"pointer",fontFamily:F}}>Auto</button>
+            
             {Object.entries(TH).map(([k,v]:any)=>(
               <button key={k} onClick={()=>setTk(k)} style={{width:22,height:22,borderRadius:"50%",border:tk===k?`2px solid ${th.ac}`:`1px solid ${th.bd}`,background:k==="light"?"#f0f4fa":k==="dark"?"#111828":"#fef1f7",cursor:"pointer",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>{v.ic}</button>
             ))}
@@ -1123,6 +1122,14 @@ export default function App(){
                 {presets.map((p,i)=><button key={i} onClick={()=>setDesc(p.desc)} style={{padding:"3px 7px",borderRadius:8,border:`1px solid ${th.bd}`,background:th.gbg,fontSize:9,color:th.t2,cursor:"pointer",fontFamily:F}}>{CAT_E[p.cat]||"📦"}{p.desc}</button>)}
               </div>
             )}
+            {/* Date picker */}
+            <div style={{...glass({padding:"6px 10px",marginBottom:8}),display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:10,color:th.t3,fontWeight:600}}>Date:</span>
+              <input type="date" value={expDate} onChange={(e:any)=>setExpDate(e.target.value)} max={new Date().toISOString().slice(0,10)}
+                style={{flex:1,fontSize:12,color:th.tx,background:"transparent",border:"none",outline:"none",fontFamily:F}}/>
+              {expDate&&<button onClick={()=>setExpDate("")} style={{background:"none",border:"none",cursor:"pointer",color:th.t3,fontSize:12}}>×</button>}
+              {!expDate&&<span style={{fontSize:9,color:th.t3}}>Today</span>}
+            </div>
             <button onClick={addExpense} disabled={!amount||!desc.trim()||saving}
               style={{width:"100%",padding:"12px",borderRadius:G.r,background:(!amount||!desc.trim())?th.bd:th.acG,color:(!amount||!desc.trim())?th.t3:"#fff",border:"none",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,boxShadow:(!amount||!desc.trim())?"none":th.acSh}}
               onMouseDown={(e:any)=>{if(amount&&desc.trim())e.currentTarget.style.transform="scale(0.97)";}}

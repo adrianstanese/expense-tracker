@@ -90,13 +90,19 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { id, group_id, username, amount, description, currency = "EUR", trip = "", scope = "shared" } = await req.json();
+    const { id, group_id, username, amount, description, currency = "EUR", trip = "", scope = "shared", created_at } = await req.json();
     if (!id || !group_id || !username || !amount || !description) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     const category = await categorize(description);
-    const rate = await getRate(currency);
+    // Fixed RON rate: 5.1, otherwise use live rate
+    const rate = currency === "RON" ? (1 / 5.1) : await getRate(currency);
     const amountEur = Math.round(amount * rate * 100) / 100;
-    await sql`INSERT INTO expenses (id, group_id, username, amount, currency, amount_eur, description, category, trip, scope)
-      VALUES (${id}, ${group_id}, ${username}, ${amount}, ${currency}, ${amountEur}, ${description}, ${category}, ${trip}, ${scope})`;
+    if (created_at) {
+      await sql`INSERT INTO expenses (id, group_id, username, amount, currency, amount_eur, description, category, trip, scope, created_at)
+        VALUES (${id}, ${group_id}, ${username}, ${amount}, ${currency}, ${amountEur}, ${description}, ${category}, ${trip}, ${scope}, ${created_at})`;
+    } else {
+      await sql`INSERT INTO expenses (id, group_id, username, amount, currency, amount_eur, description, category, trip, scope)
+        VALUES (${id}, ${group_id}, ${username}, ${amount}, ${currency}, ${amountEur}, ${description}, ${category}, ${trip}, ${scope})`;
+    }
     return NextResponse.json({ ok: true, category, amount_eur: amountEur });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
