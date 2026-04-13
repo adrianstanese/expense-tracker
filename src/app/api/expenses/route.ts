@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
       return new NextResponse(csv, { headers: { "Content-Type": "text/csv", "Content-Disposition": "attachment; filename=expenses.csv" } });
     }
 
-    const rows = await sql`SELECT id, group_id, username, amount, currency, amount_eur, description, category, trip, scope, comments, created_at FROM expenses WHERE group_id=${gid} ORDER BY created_at DESC`;
+    const rows = await sql`SELECT id, group_id, username, amount, currency, amount_eur, description, category, trip, scope, comments, reactions, created_at FROM expenses WHERE group_id=${gid} ORDER BY created_at DESC`;
     return NextResponse.json(rows);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -126,14 +126,36 @@ export async function PUT(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, comment, username } = await req.json();
-    if (!id || !comment || !username) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-    const rows = await sql`SELECT comments FROM expenses WHERE id=${id}`;
-    if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    const arr = JSON.parse(rows[0].comments || "[]");
-    arr.push({ user: username, text: comment, at: new Date().toISOString() });
-    await sql`UPDATE expenses SET comments=${JSON.stringify(arr)} WHERE id=${id}`;
-    return NextResponse.json({ ok: true, comments: arr });
+    const body = await req.json();
+    const { id, username } = body;
+    if (!id || !username) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+
+    // Reaction toggle
+    if (body.reaction) {
+      const rows = await sql`SELECT reactions FROM expenses WHERE id=${id}`;
+      if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      const reactions: Record<string, string[]> = JSON.parse(rows[0].reactions || "{}");
+      const emoji = body.reaction;
+      if (!reactions[emoji]) reactions[emoji] = [];
+      const idx = reactions[emoji].indexOf(username);
+      if (idx >= 0) reactions[emoji].splice(idx, 1); // toggle off
+      else reactions[emoji].push(username); // toggle on
+      if (reactions[emoji].length === 0) delete reactions[emoji];
+      await sql`UPDATE expenses SET reactions=${JSON.stringify(reactions)} WHERE id=${id}`;
+      return NextResponse.json({ ok: true, reactions });
+    }
+
+    // Comment
+    if (body.comment) {
+      const rows = await sql`SELECT comments FROM expenses WHERE id=${id}`;
+      if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      const arr = JSON.parse(rows[0].comments || "[]");
+      arr.push({ user: username, text: body.comment, at: new Date().toISOString() });
+      await sql`UPDATE expenses SET comments=${JSON.stringify(arr)} WHERE id=${id}`;
+      return NextResponse.json({ ok: true, comments: arr });
+    }
+
+    return NextResponse.json({ error: "No action specified" }, { status: 400 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
